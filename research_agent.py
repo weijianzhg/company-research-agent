@@ -5,6 +5,7 @@ import time
 from openai import OpenAI
 import os
 import json
+import trafilatura
 
 class CompanyResearchAgent:
     def __init__(self):
@@ -14,33 +15,48 @@ class CompanyResearchAgent:
 
     def search_web(self, query: str, num_results: int = 5) -> List[Dict[str, str]]:
         """
-        Search the web using DuckDuckGo
+        Search the web using DuckDuckGo and extract content
         """
         try:
-            # Add company-specific terms to improve search relevance
+            # Start with targeted search
             enhanced_query = f"{query} site:bloomberg.com OR site:reuters.com OR site:forbes.com"
-            results = list(self.ddgs.text(enhanced_query, max_results=num_results))
+            results = []
+
+            # Try first with enhanced query
+            for r in self.ddgs.text(enhanced_query, max_results=num_results):
+                if r.get('link'):
+                    try:
+                        # Download and extract content from the webpage
+                        downloaded = trafilatura.fetch_url(r['link'])
+                        if downloaded:
+                            text_content = trafilatura.extract(downloaded) or r.get('body', '')
+                            results.append({
+                                'title': r.get('title', ''),
+                                'body': text_content,
+                                'link': r['link']
+                            })
+                    except Exception:
+                        # If content extraction fails, use the search snippet
+                        results.append({
+                            'title': r.get('title', ''),
+                            'body': r.get('body', r.get('snippet', '')),
+                            'link': r['link']
+                        })
+
+            # If no results, try without site restriction
+            if not results:
+                for r in self.ddgs.text(query, max_results=num_results):
+                    if r.get('link'):
+                        results.append({
+                            'title': r.get('title', ''),
+                            'body': r.get('body', r.get('snippet', '')),
+                            'link': r['link']
+                        })
 
             if not results:
-                # Try without site restrictions if no results found
-                results = list(self.ddgs.text(query, max_results=num_results))
-                if not results:
-                    raise Exception(f"No results found for query: {query}")
+                raise Exception(f"No valid results found for query: {query}")
 
-            # Normalize result fields and ensure valid URLs
-            normalized_results = []
-            for result in results:
-                if result.get('link') or result.get('url'):
-                    normalized_results.append({
-                        'title': result.get('title', ''),
-                        'body': result.get('body', result.get('snippet', '')),
-                        'link': result.get('link') or result.get('url', '')
-                    })
-
-            if not normalized_results:
-                raise Exception(f"No valid results with source URLs found for query: {query}")
-
-            return normalized_results
+            return results
 
         except Exception as e:
             print(f"Search error details - Query: {query}, Error: {str(e)}")  # Debug info
@@ -97,7 +113,7 @@ class CompanyResearchAgent:
 
     def search_company_profile(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company profile"""
-        profile_query = f"{company_name} company about business description overview"
+        profile_query = f"{company_name} company overview business description"
         profile_results = self.search_web(profile_query)
         time.sleep(self.search_delay)
 
@@ -117,7 +133,7 @@ class CompanyResearchAgent:
 
     def search_company_sector(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company sector"""
-        sector_query = f"{company_name} industry sector business type"
+        sector_query = f"{company_name} industry sector type business"
         sector_results = self.search_web(sector_query)
         time.sleep(self.search_delay)
 
@@ -137,7 +153,7 @@ class CompanyResearchAgent:
 
     def search_company_objectives(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company objectives"""
-        objectives_query = f"{company_name} corporate goals strategy future plans news"
+        objectives_query = f"{company_name} goals strategy plans future announcement news"
         objectives_results = self.search_web(objectives_query)
         time.sleep(self.search_delay)
 
