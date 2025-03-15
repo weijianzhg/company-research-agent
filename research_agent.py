@@ -132,55 +132,78 @@ class CompanyResearchAgent:
 
     def search_company_profile(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company profile"""
-        profile_query = f"{company_name} company overview business description"
-        profile_results = self.search_web(profile_query)
-        time.sleep(self.search_delay)
+        try:
+            # Try multiple search patterns
+            search_patterns = [
+                f"{company_name} company profile",
+                f"{company_name} about us",
+                f"{company_name} business overview",
+                company_name  # Simple fallback
+            ]
 
-        if not profile_results:
+            for query in search_patterns:
+                profile_results = self.search_web(query)
+                if profile_results:
+                    combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
+                    profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
+
+                    if profile_analysis['confidence'] >= 0.3:  # Lower threshold
+                        return {
+                            'data': profile_analysis['data'],
+                            'source': profile_results[0]['link'],
+                            'confidence': profile_analysis['confidence']
+                        }
+                time.sleep(self.search_delay)
+
             return None
 
-        combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
-        profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
-
-        if profile_analysis['confidence'] >= 0.3:  # Lower threshold
-            return {
-                'data': profile_analysis['data'],
-                'source': profile_results[0]['link'],
-                'confidence': profile_analysis['confidence']
-            }
-        return None
+        except Exception as e:
+            print(f"Profile search error: {str(e)}")
+            return None
 
     def search_company_sector(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company sector"""
-        sector_query = f"{company_name} industry sector type business"
-        sector_results = self.search_web(sector_query)
-        time.sleep(self.search_delay)
+        try:
+            # Try multiple search patterns
+            search_patterns = [
+                f"{company_name} industry sector",
+                f"{company_name} company type",
+                f"what industry is {company_name} in",
+                company_name  # Simple fallback
+            ]
 
-        if not sector_results:
+            for query in search_patterns:
+                sector_results = self.search_web(query)
+                if sector_results:
+                    combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
+                    sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
+
+                    if sector_analysis['confidence'] >= 0.3:  # Lower threshold
+                        return {
+                            'data': sector_analysis['data'],
+                            'source': sector_results[0]['link'],
+                            'confidence': sector_analysis['confidence']
+                        }
+                time.sleep(self.search_delay)
+
             return None
 
-        combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
-        sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
-
-        if sector_analysis['confidence'] >= 0.3:  # Lower threshold
-            return {
-                'data': sector_analysis['data'],
-                'source': sector_results[0]['link'],
-                'confidence': sector_analysis['confidence']
-            }
-        return None
+        except Exception as e:
+            print(f"Sector search error: {str(e)}")
+            return None
 
     def search_company_objectives(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company objectives"""
-        # Try multiple search patterns for objectives
-        search_patterns = [
-            f"{company_name} company strategic plans initiatives",
-            f"{company_name} future goals objectives announcement",
-            f"{company_name} business outlook forecast"
-        ]
+        try:
+            # Try multiple search patterns
+            search_patterns = [
+                f"{company_name} future plans",
+                f"{company_name} strategic goals",
+                f"{company_name} company outlook",
+                f"{company_name} business strategy"
+            ]
 
-        for query in search_patterns:
-            try:
+            for query in search_patterns:
                 objectives_results = self.search_web(query)
                 if objectives_results:
                     combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
@@ -192,12 +215,13 @@ class CompanyResearchAgent:
                             'source': objectives_results[0]['link'],
                             'confidence': objectives_analysis['confidence']
                         }
-            except Exception:
-                continue
+                time.sleep(self.search_delay)
 
-            time.sleep(self.search_delay)
+            return None
 
-        return None
+        except Exception as e:
+            print(f"Objectives search error: {str(e)}")
+            return None
 
     def research_company(self, company_name: str) -> Dict[str, Any]:
         """
