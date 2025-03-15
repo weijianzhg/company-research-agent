@@ -18,14 +18,15 @@ class CompanyResearchAgent:
         Search the web using DuckDuckGo and extract content
         """
         try:
-            # Start with targeted search
-            enhanced_query = f"{query} site:bloomberg.com OR site:reuters.com OR site:forbes.com"
+            # First try without any site restrictions
+            search_results = self.ddg_api.search(query)
+
+            if not search_results.get("success"):
+                print(f"Search API error for query: {query}")
+                return []
+
             results = []
-
-            # Try first with enhanced query
-            search_results = self.ddg_api.search(enhanced_query)
-
-            if search_results.get("success") and search_results.get("data"):
+            if search_results.get("data"):
                 for r in search_results["data"][:num_results]:
                     if r.get("url"):
                         try:
@@ -46,40 +47,11 @@ class CompanyResearchAgent:
                                 'link': r["url"]
                             })
 
-            # If no results, try without site restriction
-            if not results:
-                search_results = self.ddg_api.search(query)
-                if search_results.get("success") and search_results.get("data"):
-                    for r in search_results["data"][:num_results]:
-                        if r.get("url"):
-                            results.append({
-                                'title': r.get('title', ''),
-                                'body': r.get('description', ''),
-                                'link': r["url"]
-                            })
-
-            if not results:
-                print(f"Search failed for query: {query}")  # Debug info
-                # Try one more time with a simplified query
-                simple_query = ' '.join(query.split()[:2])  # Use first two words
-                search_results = self.ddg_api.search(simple_query)
-                if search_results.get("success") and search_results.get("data"):
-                    for r in search_results["data"][:num_results]:
-                        if r.get("url"):
-                            results.append({
-                                'title': r.get('title', ''),
-                                'body': r.get('description', ''),
-                                'link': r["url"]
-                            })
-
-            if not results:
-                raise Exception(f"No valid results found for query: {query}")
-
             return results
 
         except Exception as e:
             print(f"Search error details - Query: {query}, Error: {str(e)}")  # Debug info
-            raise Exception(f"Search error: {str(e)}")
+            return []
 
     def analyze_with_gpt(self, content: str, company_name: str, analysis_type: str) -> Dict[str, Any]:
         """
@@ -135,10 +107,10 @@ class CompanyResearchAgent:
         try:
             # Try multiple search patterns
             search_patterns = [
-                f"{company_name} company profile",
-                f"{company_name} about us",
-                f"{company_name} business overview",
-                company_name  # Simple fallback
+                company_name,  # Start with just the company name
+                f"{company_name} Wikipedia",
+                f"{company_name} company",
+                f"{company_name} about"
             ]
 
             for query in search_patterns:
@@ -166,10 +138,10 @@ class CompanyResearchAgent:
         try:
             # Try multiple search patterns
             search_patterns = [
-                f"{company_name} industry sector",
-                f"{company_name} company type",
-                f"what industry is {company_name} in",
-                company_name  # Simple fallback
+                f"{company_name} Wikipedia",
+                company_name,
+                f"{company_name} sector",
+                f"{company_name} industry"
             ]
 
             for query in search_patterns:
@@ -197,10 +169,10 @@ class CompanyResearchAgent:
         try:
             # Try multiple search patterns
             search_patterns = [
-                f"{company_name} future plans",
-                f"{company_name} strategic goals",
-                f"{company_name} company outlook",
-                f"{company_name} business strategy"
+                f"{company_name} news",
+                f"{company_name} plans",
+                f"{company_name} strategy",
+                f"{company_name} future"
             ]
 
             for query in search_patterns:
