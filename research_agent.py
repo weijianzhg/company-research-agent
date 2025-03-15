@@ -17,9 +17,15 @@ class CompanyResearchAgent:
         Search the web using DuckDuckGo
         """
         try:
-            results = list(self.ddgs.text(query, max_results=num_results))
+            # Add company-specific terms to improve search relevance
+            enhanced_query = f"{query} site:bloomberg.com OR site:reuters.com OR site:forbes.com"
+            results = list(self.ddgs.text(enhanced_query, max_results=num_results))
+
             if not results:
-                raise Exception(f"No results found for query: {query}")
+                # Try without site restrictions if no results found
+                results = list(self.ddgs.text(query, max_results=num_results))
+                if not results:
+                    raise Exception(f"No results found for query: {query}")
 
             # Normalize result fields and ensure valid URLs
             normalized_results = []
@@ -32,10 +38,12 @@ class CompanyResearchAgent:
                     })
 
             if not normalized_results:
-                raise Exception("No valid results with source URLs found")
+                raise Exception(f"No valid results with source URLs found for query: {query}")
 
             return normalized_results
+
         except Exception as e:
+            print(f"Search error details - Query: {query}, Error: {str(e)}")  # Debug info
             raise Exception(f"Search error: {str(e)}")
 
     def analyze_with_gpt(self, content: str, company_name: str, analysis_type: str) -> Dict[str, Any]:
@@ -89,7 +97,7 @@ class CompanyResearchAgent:
 
     def search_company_profile(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company profile"""
-        profile_query = f"{company_name} corporation company profile about business"
+        profile_query = f"{company_name} company about business description overview"
         profile_results = self.search_web(profile_query)
         time.sleep(self.search_delay)
 
@@ -109,7 +117,7 @@ class CompanyResearchAgent:
 
     def search_company_sector(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company sector"""
-        sector_query = f"{company_name} industry sector business type company"
+        sector_query = f"{company_name} industry sector business type"
         sector_results = self.search_web(sector_query)
         time.sleep(self.search_delay)
 
@@ -129,7 +137,7 @@ class CompanyResearchAgent:
 
     def search_company_objectives(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company objectives"""
-        objectives_query = f"{company_name} company 2025 objectives goals future plans strategy"
+        objectives_query = f"{company_name} corporate goals strategy future plans news"
         objectives_results = self.search_web(objectives_query)
         time.sleep(self.search_delay)
 
@@ -160,7 +168,11 @@ class CompanyResearchAgent:
 
             # Get initial search results
             profile_data = self.search_company_profile(company_name)
+            time.sleep(self.search_delay)  # Add delay between searches
+
             sector_data = self.search_company_sector(company_name)
+            time.sleep(self.search_delay)
+
             objectives_data = self.search_company_objectives(company_name)
 
             results = {
