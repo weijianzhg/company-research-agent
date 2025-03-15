@@ -41,8 +41,7 @@ if input_method == "Single Company":
                 with result_container.container():
                     st.markdown("### Company Profile")
                     st.write(profile_data['data'])
-                    if profile_data['source'] != 'N/A':
-                        st.caption(f"Source: {profile_data['source']}")
+                    st.caption(f"Source: {profile_data['source']}")
                     st.progress(profile_data['confidence'], text=f"Confidence: {profile_data['confidence']:.0%}")
 
             # Sector Search
@@ -53,8 +52,7 @@ if input_method == "Single Company":
                 with result_container.container():
                     st.markdown("### Company Sector")
                     st.write(sector_data['data'])
-                    if sector_data['source'] != 'N/A':
-                        st.caption(f"Source: {sector_data['source']}")
+                    st.caption(f"Source: {sector_data['source']}")
                     st.progress(sector_data['confidence'], text=f"Confidence: {sector_data['confidence']:.0%}")
 
             # Objectives Search
@@ -65,8 +63,7 @@ if input_method == "Single Company":
                 with result_container.container():
                     st.markdown("### 2025 Objectives")
                     st.write(objectives_data['data'])
-                    if objectives_data['source'] != 'N/A':
-                        st.caption(f"Source: {objectives_data['source']}")
+                    st.caption(f"Source: {objectives_data['source']}")
                     st.progress(objectives_data['confidence'], text=f"Confidence: {objectives_data['confidence']:.0%}")
 
             progress_container.markdown("✅ Research complete!")

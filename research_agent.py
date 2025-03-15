@@ -1,3 +1,4 @@
+from ddg import Duckduckgo
 import re
 from typing import Dict, List, Any, Optional
 import time
@@ -5,7 +6,6 @@ from openai import OpenAI
 import os
 import json
 import trafilatura
-from ddg import Duckduckgo
 
 class CompanyResearchAgent:
     def __init__(self):
@@ -18,14 +18,14 @@ class CompanyResearchAgent:
         Search the web using DuckDuckGo and extract content
         """
         try:
-            search_results = self.ddg_api.search(query)
-
-            if not search_results.get("success"):
-                print(f"Search API error for query: {query}")
-                return []
-
+            # Start with targeted search
+            enhanced_query = f"{query} site:bloomberg.com OR site:reuters.com OR site:forbes.com"
             results = []
-            if search_results.get("data"):
+
+            # Try first with enhanced query
+            search_results = self.ddg_api.search(enhanced_query)
+
+            if search_results.get("success") and search_results.get("data"):
                 for r in search_results["data"][:num_results]:
                     if r.get("url"):
                         try:
@@ -46,11 +46,26 @@ class CompanyResearchAgent:
                                 'link': r["url"]
                             })
 
+            # If no results, try without site restriction
+            if not results:
+                search_results = self.ddg_api.search(query)
+                if search_results.get("success") and search_results.get("data"):
+                    for r in search_results["data"][:num_results]:
+                        if r.get("url"):
+                            results.append({
+                                'title': r.get('title', ''),
+                                'body': r.get('description', ''),
+                                'link': r["url"]
+                            })
+
+            if not results:
+                raise Exception(f"No valid results found for query: {query}")
+
             return results
 
         except Exception as e:
             print(f"Search error details - Query: {query}, Error: {str(e)}")  # Debug info
-            return []
+            raise Exception(f"Search error: {str(e)}")
 
     def analyze_with_gpt(self, content: str, company_name: str, analysis_type: str) -> Dict[str, Any]:
         """
@@ -99,104 +114,67 @@ class CompanyResearchAgent:
             return result
 
         except Exception as e:
-            print(f"GPT analysis failed: {str(e)}")
-            return {'data': 'Analysis failed', 'confidence': 0.0}
+            raise Exception(f"GPT analysis failed: {str(e)}")
 
     def search_company_profile(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company profile"""
-        try:
-            # Try multiple search patterns
-            search_patterns = [
-                company_name,  # Start with just the company name
-                f"{company_name} Wikipedia",
-                f"{company_name} company",
-                f"{company_name} about"
-            ]
+        profile_query = f"{company_name} company overview business description"
+        profile_results = self.search_web(profile_query)
+        time.sleep(self.search_delay)
 
-            for query in search_patterns:
-                profile_results = self.search_web(query)
-                if profile_results:
-                    combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
-                    profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
+        if not profile_results:
+            return None
 
-                    if profile_analysis['confidence'] >= 0.3:  # Lower threshold
-                        return {
-                            'data': profile_analysis['data'],
-                            'source': profile_results[0]['link'],
-                            'confidence': profile_analysis['confidence']
-                        }
-                time.sleep(self.search_delay)
+        combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
+        profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
 
-            # Return default response if no good results found
-            return {'data': 'No reliable profile information found', 'source': 'N/A', 'confidence': 0.0}
-
-        except Exception as e:
-            print(f"Profile search error: {str(e)}")
-            return {'data': 'Error retrieving profile', 'source': 'N/A', 'confidence': 0.0}
+        if profile_analysis['confidence'] >= 0.3:  # Lower threshold
+            return {
+                'data': profile_analysis['data'],
+                'source': profile_results[0]['link'],
+                'confidence': profile_analysis['confidence']
+            }
+        return None
 
     def search_company_sector(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company sector"""
-        try:
-            # Try multiple search patterns
-            search_patterns = [
-                f"{company_name} Wikipedia",
-                company_name,
-                f"{company_name} sector",
-                f"{company_name} industry"
-            ]
+        sector_query = f"{company_name} industry sector type business"
+        sector_results = self.search_web(sector_query)
+        time.sleep(self.search_delay)
 
-            for query in search_patterns:
-                sector_results = self.search_web(query)
-                if sector_results:
-                    combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
-                    sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
+        if not sector_results:
+            return None
 
-                    if sector_analysis['confidence'] >= 0.3:  # Lower threshold
-                        return {
-                            'data': sector_analysis['data'],
-                            'source': sector_results[0]['link'],
-                            'confidence': sector_analysis['confidence']
-                        }
-                time.sleep(self.search_delay)
+        combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
+        sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
 
-            # Return default response if no good results found
-            return {'data': 'No reliable sector information found', 'source': 'N/A', 'confidence': 0.0}
-
-        except Exception as e:
-            print(f"Sector search error: {str(e)}")
-            return {'data': 'Error retrieving sector information', 'source': 'N/A', 'confidence': 0.0}
+        if sector_analysis['confidence'] >= 0.3:  # Lower threshold
+            return {
+                'data': sector_analysis['data'],
+                'source': sector_results[0]['link'],
+                'confidence': sector_analysis['confidence']
+            }
+        return None
 
     def search_company_objectives(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company objectives"""
-        try:
-            # Try multiple search patterns
-            search_patterns = [
-                f"{company_name} news",
-                f"{company_name} plans",
-                f"{company_name} strategy",
-                f"{company_name} future"
-            ]
+        objectives_query = f"{company_name} goals strategy plans future announcement news"
+        objectives_results = self.search_web(objectives_query)
+        time.sleep(self.search_delay)
 
-            for query in search_patterns:
-                objectives_results = self.search_web(query)
-                if objectives_results:
-                    combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
-                    objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
+        if not objectives_results:
+            return None
 
-                    if objectives_analysis['confidence'] >= 0.3:  # Lower threshold
-                        return {
-                            'data': objectives_analysis['data'],
-                            'source': objectives_results[0]['link'],
-                            'confidence': objectives_analysis['confidence']
-                        }
-                time.sleep(self.search_delay)
+        combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
+        objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
 
-            # Return default response if no good results found
-            return {'data': 'No reliable objectives information found', 'source': 'N/A', 'confidence': 0.0}
-
-        except Exception as e:
-            print(f"Objectives search error: {str(e)}")
-            return {'data': 'Error retrieving objectives', 'source': 'N/A', 'confidence': 0.0}
+        if objectives_analysis['confidence'] >= 0.3:  # Lower threshold
+            return {
+                'data': objectives_analysis['data'],
+                'source': objectives_results[0]['link'],
+                'confidence': objectives_analysis['confidence']
+            }
+        return None
 
     def research_company(self, company_name: str) -> Dict[str, Any]:
         """
