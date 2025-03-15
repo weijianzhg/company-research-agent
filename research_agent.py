@@ -1,6 +1,6 @@
 from duckduckgo_search import DDGS
 import re
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import time
 from openai import OpenAI
 import os
@@ -82,78 +82,56 @@ class CompanyResearchAgent:
         except Exception as e:
             raise Exception(f"GPT analysis failed: {str(e)}")
 
-    def extract_company_data(self, company_name: str, search_results: List[Dict[str, str]]) -> Dict[str, Any]:
-        """
-        Extract and validate company information from search results using GPT
-        """
-        # Add more specific search terms for better results
+    def search_company_profile(self, company_name: str) -> Optional[Dict[str, Any]]:
+        """Search and analyze company profile"""
         profile_query = f"{company_name} corporation company profile about business"
+        profile_results = self.search_web(profile_query)
+        time.sleep(self.search_delay)
+
+        combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
+        profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
+
+        if profile_analysis['confidence'] >= 0.3:  # Lower threshold
+            return {
+                'data': profile_analysis['data'],
+                'source': profile_results[0]['link'],
+                'confidence': profile_analysis['confidence']
+            }
+        return None
+
+    def search_company_sector(self, company_name: str) -> Optional[Dict[str, Any]]:
+        """Search and analyze company sector"""
         sector_query = f"{company_name} industry sector business type company"
+        sector_results = self.search_web(sector_query)
+        time.sleep(self.search_delay)
+
+        combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
+        sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
+
+        if sector_analysis['confidence'] >= 0.3:  # Lower threshold
+            return {
+                'data': sector_analysis['data'],
+                'source': sector_results[0]['link'],
+                'confidence': sector_analysis['confidence']
+            }
+        return None
+
+    def search_company_objectives(self, company_name: str) -> Optional[Dict[str, Any]]:
+        """Search and analyze company objectives"""
         objectives_query = f"{company_name} company 2025 objectives goals future plans strategy"
+        objectives_results = self.search_web(objectives_query)
+        time.sleep(self.search_delay)
 
-        # Initialize results
-        results = {
-            'profile': {'data': '', 'source': '', 'confidence': 0.0},
-            'sector': {'data': '', 'source': '', 'confidence': 0.0},
-            'objectives': {'data': '', 'source': '', 'confidence': 0.0}
-        }
+        combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
+        objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
 
-        try:
-            # Extract profile
-            profile_results = self.search_web(profile_query)
-            time.sleep(self.search_delay)
-
-            # Combine search results for better context
-            combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
-            profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
-
-            if profile_analysis['confidence'] >= 0.5:  # Lower threshold
-                results['profile'] = {
-                    'data': profile_analysis['data'],
-                    'source': profile_results[0]['link'],
-                    'confidence': profile_analysis['confidence']
-                }
-
-            # Extract sector
-            sector_results = self.search_web(sector_query)
-            time.sleep(self.search_delay)
-
-            combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
-            sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
-
-            if sector_analysis['confidence'] >= 0.5:  # Lower threshold
-                results['sector'] = {
-                    'data': sector_analysis['data'],
-                    'source': sector_results[0]['link'],
-                    'confidence': sector_analysis['confidence']
-                }
-
-            # Extract objectives
-            objectives_results = self.search_web(objectives_query)
-            time.sleep(self.search_delay)
-
-            combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
-            objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
-
-            if objectives_analysis['confidence'] >= 0.5:  # Lower threshold
-                results['objectives'] = {
-                    'data': objectives_analysis['data'],
-                    'source': objectives_results[0]['link'],
-                    'confidence': objectives_analysis['confidence']
-                }
-
-            # Validate final results
-            if not results['profile']['data']:
-                raise Exception(f"Could not find valid profile information for {company_name}")
-            if not results['sector']['data']:
-                raise Exception(f"Could not find valid sector information for {company_name}")
-            if not results['objectives']['data']:
-                raise Exception(f"Could not find valid 2025 objectives for {company_name}")
-
-            return results
-
-        except Exception as e:
-            raise Exception(f"Data extraction failed: {str(e)}")
+        if objectives_analysis['confidence'] >= 0.3:  # Lower threshold
+            return {
+                'data': objectives_analysis['data'],
+                'source': objectives_results[0]['link'],
+                'confidence': objectives_analysis['confidence']
+            }
+        return None
 
     def research_company(self, company_name: str) -> Dict[str, Any]:
         """
@@ -167,7 +145,15 @@ class CompanyResearchAgent:
             company_name = company_name.strip()
 
             # Get initial search results
-            results = self.extract_company_data(company_name, [])
+            profile_data = self.search_company_profile(company_name)
+            sector_data = self.search_company_sector(company_name)
+            objectives_data = self.search_company_objectives(company_name)
+
+            results = {
+                'profile': profile_data if profile_data else {'data': '', 'source': '', 'confidence': 0.0},
+                'sector': sector_data if sector_data else {'data': '', 'source': '', 'confidence': 0.0},
+                'objectives': objectives_data if objectives_data else {'data': '', 'source': '', 'confidence': 0.0}
+            }
 
             return results
 
