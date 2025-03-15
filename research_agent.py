@@ -14,19 +14,30 @@ class CompanyResearchAgent:
         """
         try:
             results = list(self.ddgs.text(query, max_results=num_results))
-            return results if results else []
+            if not results:
+                raise Exception(f"No results found for query: {query}")
+
+            # Normalize result fields
+            normalized_results = []
+            for result in results:
+                normalized_results.append({
+                    'title': result.get('title', ''),
+                    'body': result.get('body', result.get('snippet', '')),
+                    'link': result.get('link', result.get('url', ''))
+                })
+            return normalized_results
         except Exception as e:
             raise Exception(f"Search error: {str(e)}")
 
-    def validate_data(self, data: str, data_type: str) -> bool:
+    def validate_data(self, data: str, source_url: str, data_type: str) -> bool:
         """
         Validate extracted data based on type
         """
-        if not data:
+        if not data or not source_url:
             return False
 
         if data_type == 'profile':
-            # Profile should be at least 50 characters and mention the company
+            # Profile should be at least 50 characters
             return len(data) >= 50
         elif data_type == 'sector':
             # Sector should be a brief description
@@ -52,51 +63,55 @@ class CompanyResearchAgent:
             'objectives': {'data': '', 'source': ''}
         }
 
-        # Extract profile
-        profile_results = self.search_web(profile_query)
-        time.sleep(self.search_delay)
+        try:
+            # Extract profile
+            profile_results = self.search_web(profile_query)
+            time.sleep(self.search_delay)
 
-        for result in profile_results:
-            if self.validate_data(result['body'], 'profile'):
-                results['profile'] = {
-                    'data': result['body'],
-                    'source': result['link']
-                }
-                break
+            for result in profile_results:
+                if self.validate_data(result['body'], result['link'], 'profile'):
+                    results['profile'] = {
+                        'data': result['body'],
+                        'source': result['link']
+                    }
+                    break
 
-        # Extract sector
-        sector_results = self.search_web(sector_query)
-        time.sleep(self.search_delay)
+            # Extract sector
+            sector_results = self.search_web(sector_query)
+            time.sleep(self.search_delay)
 
-        for result in sector_results:
-            if self.validate_data(result['body'], 'sector'):
-                results['sector'] = {
-                    'data': result['body'],
-                    'source': result['link']
-                }
-                break
+            for result in sector_results:
+                if self.validate_data(result['body'], result['link'], 'sector'):
+                    results['sector'] = {
+                        'data': result['body'],
+                        'source': result['link']
+                    }
+                    break
 
-        # Extract objectives
-        objectives_results = self.search_web(objectives_query)
-        time.sleep(self.search_delay)
+            # Extract objectives
+            objectives_results = self.search_web(objectives_query)
+            time.sleep(self.search_delay)
 
-        for result in objectives_results:
-            if self.validate_data(result['body'], 'objectives'):
-                results['objectives'] = {
-                    'data': result['body'],
-                    'source': result['link']
-                }
-                break
+            for result in objectives_results:
+                if self.validate_data(result['body'], result['link'], 'objectives'):
+                    results['objectives'] = {
+                        'data': result['body'],
+                        'source': result['link']
+                    }
+                    break
 
-        # Validate final results
-        if not results['profile']['data']:
-            raise Exception(f"Could not find valid profile information for {company_name}")
-        if not results['sector']['data']:
-            raise Exception(f"Could not find valid sector information for {company_name}")
-        if not results['objectives']['data']:
-            raise Exception(f"Could not find valid 2025 objectives for {company_name}")
+            # Validate final results
+            if not results['profile']['data']:
+                raise Exception(f"Could not find valid profile information for {company_name}")
+            if not results['sector']['data']:
+                raise Exception(f"Could not find valid sector information for {company_name}")
+            if not results['objectives']['data']:
+                raise Exception(f"Could not find valid 2025 objectives for {company_name}")
 
-        return results
+            return results
+
+        except Exception as e:
+            raise Exception(f"Data extraction failed: {str(e)}")
 
     def research_company(self, company_name: str) -> Dict[str, Any]:
         """
