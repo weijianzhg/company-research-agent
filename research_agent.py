@@ -8,7 +8,7 @@ class CompanyResearchAgent:
         self.search_delay = 2  # Delay between searches to avoid rate limiting
         self.ddgs = DDGS()
 
-    def search_web(self, query: str, num_results: int = 3) -> List[Dict[str, str]]:
+    def search_web(self, query: str, num_results: int = 5) -> List[Dict[str, str]]:
         """
         Search the web using DuckDuckGo
         """
@@ -37,14 +37,16 @@ class CompanyResearchAgent:
             return False
 
         if data_type == 'profile':
-            # Profile should be at least 50 characters
-            return len(data) >= 50
+            # Profile should be at least 30 characters for short company names
+            return len(data) >= 30
         elif data_type == 'sector':
             # Sector should be a brief description
             return 10 <= len(data) <= 200
         elif data_type == 'objectives':
             # Objectives should mention future plans or 2025
-            return '2025' in data or 'future' in data.lower() or 'goal' in data.lower()
+            return ('2025' in data or 'future' in data.lower() or 
+                   'goal' in data.lower() or 'strategy' in data.lower() or 
+                   'plan' in data.lower())
 
         return False
 
@@ -52,9 +54,10 @@ class CompanyResearchAgent:
         """
         Extract and validate company information from search results
         """
-        profile_query = f"{company_name} company profile about"
-        sector_query = f"{company_name} industry sector business"
-        objectives_query = f"{company_name} 2025 objectives goals future plans"
+        # Add more specific search terms for better results
+        profile_query = f"{company_name} corporation company profile about business"
+        sector_query = f"{company_name} industry sector business type company"
+        objectives_query = f"{company_name} company 2025 objectives goals future plans strategy"
 
         # Initialize results
         results = {
