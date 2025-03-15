@@ -24,35 +24,38 @@ input_method = st.radio(
 
 if input_method == "Single Company":
     company_name = st.text_input("Enter company name:")
-    
+
     if company_name and st.button("Research"):
         with st.spinner(f"Researching {company_name}..."):
             try:
                 result = agent.research_company(company_name)
-                
+
                 st.subheader("Research Results")
-                
+
                 # Company Profile
                 st.markdown("### Company Profile")
                 st.write(result['profile']['data'])
                 st.caption(f"Source: {result['profile']['source']}")
-                
+                st.progress(result['profile']['confidence'], text=f"Confidence: {result['profile']['confidence']:.0%}")
+
                 # Company Sector
                 st.markdown("### Company Sector")
                 st.write(result['sector']['data'])
                 st.caption(f"Source: {result['sector']['source']}")
-                
+                st.progress(result['sector']['confidence'], text=f"Confidence: {result['sector']['confidence']:.0%}")
+
                 # 2025 Objectives
                 st.markdown("### 2025 Objectives")
                 st.write(result['objectives']['data'])
                 st.caption(f"Source: {result['objectives']['source']}")
-                
+                st.progress(result['objectives']['confidence'], text=f"Confidence: {result['objectives']['confidence']:.0%}")
+
             except Exception as e:
                 st.error(f"Error during research: {str(e)}")
 
 else:
     uploaded_file = st.file_uploader("Upload CSV file with company names", type=['csv'])
-    
+
     if uploaded_file:
         try:
             df = pd.read_csv(uploaded_file)
@@ -63,7 +66,7 @@ else:
                 if st.button(f"Research {len(companies)} companies"):
                     results = []
                     progress_bar = st.progress(0)
-                    
+
                     for idx, company in enumerate(companies):
                         with st.spinner(f"Researching {company}..."):
                             try:
@@ -71,8 +74,11 @@ else:
                                 results.append({
                                     'Company': company,
                                     'Profile': result['profile']['data'],
+                                    'Profile Confidence': f"{result['profile']['confidence']:.0%}",
                                     'Sector': result['sector']['data'],
+                                    'Sector Confidence': f"{result['sector']['confidence']:.0%}",
                                     'Objectives': result['objectives']['data'],
+                                    'Objectives Confidence': f"{result['objectives']['confidence']:.0%}",
                                     'Profile Source': result['profile']['source'],
                                     'Sector Source': result['sector']['source'],
                                     'Objectives Source': result['objectives']['source']
@@ -83,10 +89,10 @@ else:
                                     'Error': str(e)
                                 })
                         progress_bar.progress((idx + 1) / len(companies))
-                    
+
                     results_df = pd.DataFrame(results)
                     st.dataframe(results_df)
-                    
+
                     # Download button for results
                     csv = results_df.to_csv(index=False)
                     st.download_button(
@@ -103,5 +109,6 @@ st.markdown("### Instructions")
 st.markdown("""
 - For single company research, enter the company name and click Research
 - For multiple companies, upload a CSV file with a 'company_name' column
-- Results include company profile, sector, and 2025 objectives with sources
+- Results include company profile, sector, and 2025 objectives with confidence scores and sources
+- Higher confidence scores indicate more reliable information
 """)

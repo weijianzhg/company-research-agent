@@ -2,11 +2,15 @@ from duckduckgo_search import DDGS
 import re
 from typing import Dict, List, Any
 import time
+from openai import OpenAI
+import os
+import json
 
 class CompanyResearchAgent:
     def __init__(self):
         self.search_delay = 2  # Delay between searches to avoid rate limiting
         self.ddgs = DDGS()
+        self.openai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     def search_web(self, query: str, num_results: int = 5) -> List[Dict[str, str]]:
         """
@@ -29,30 +33,43 @@ class CompanyResearchAgent:
         except Exception as e:
             raise Exception(f"Search error: {str(e)}")
 
-    def validate_data(self, data: str, source_url: str, data_type: str) -> bool:
+    def analyze_with_gpt(self, content: str, company_name: str, analysis_type: str) -> Dict[str, Any]:
         """
-        Validate extracted data based on type
+        Use GPT to analyze and extract specific company information
         """
-        if not data or not source_url:
-            return False
+        try:
+            prompts = {
+                'profile': f"Extract a concise company profile for {company_name} from the following text. "
+                          f"Focus on what the company does, its main business, and key information. "
+                          f"Respond in JSON format with 'data' and 'confidence' fields. "
+                          f"Example: {{'data': 'Company profile...', 'confidence': 0.95}}",
+                'sector': f"Determine the industry sector and business type of {company_name} from the following text. "
+                         f"Be specific about the sector and any sub-sectors. "
+                         f"Respond in JSON format with 'data' and 'confidence' fields.",
+                'objectives': f"Extract {company_name}'s future objectives, particularly focusing on 2025 goals "
+                            f"or strategic plans from the following text. If exact 2025 goals aren't mentioned, "
+                            f"include relevant future plans. "
+                            f"Respond in JSON format with 'data' and 'confidence' fields."
+            }
 
-        if data_type == 'profile':
-            # Profile should be at least 30 characters for short company names
-            return len(data) >= 30
-        elif data_type == 'sector':
-            # Sector should be a brief description
-            return 10 <= len(data) <= 200
-        elif data_type == 'objectives':
-            # Objectives should mention future plans or 2025
-            return ('2025' in data or 'future' in data.lower() or 
-                   'goal' in data.lower() or 'strategy' in data.lower() or 
-                   'plan' in data.lower())
+            response = self.openai.chat.completions.create(
+                model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+                messages=[
+                    {"role": "system", "content": "You are a company research analyst focused on extracting accurate information."},
+                    {"role": "user", "content": f"{prompts[analysis_type]}\n\nText: {content}"}
+                ],
+                response_format={"type": "json_object"}
+            )
 
-        return False
+            result = json.loads(response.choices[0].message.content)
+            return result
+
+        except Exception as e:
+            raise Exception(f"GPT analysis failed: {str(e)}")
 
     def extract_company_data(self, company_name: str, search_results: List[Dict[str, str]]) -> Dict[str, Any]:
         """
-        Extract and validate company information from search results
+        Extract and validate company information from search results using GPT
         """
         # Add more specific search terms for better results
         profile_query = f"{company_name} corporation company profile about business"
@@ -61,9 +78,9 @@ class CompanyResearchAgent:
 
         # Initialize results
         results = {
-            'profile': {'data': '', 'source': ''},
-            'sector': {'data': '', 'source': ''},
-            'objectives': {'data': '', 'source': ''}
+            'profile': {'data': '', 'source': '', 'confidence': 0},
+            'sector': {'data': '', 'source': '', 'confidence': 0},
+            'objectives': {'data': '', 'source': '', 'confidence': 0}
         }
 
         try:
@@ -71,37 +88,44 @@ class CompanyResearchAgent:
             profile_results = self.search_web(profile_query)
             time.sleep(self.search_delay)
 
-            for result in profile_results:
-                if self.validate_data(result['body'], result['link'], 'profile'):
-                    results['profile'] = {
-                        'data': result['body'],
-                        'source': result['link']
-                    }
-                    break
+            # Combine search results for better context
+            combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
+            profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
+
+            if profile_analysis['confidence'] >= 0.7:
+                results['profile'] = {
+                    'data': profile_analysis['data'],
+                    'source': profile_results[0]['link'],
+                    'confidence': profile_analysis['confidence']
+                }
 
             # Extract sector
             sector_results = self.search_web(sector_query)
             time.sleep(self.search_delay)
 
-            for result in sector_results:
-                if self.validate_data(result['body'], result['link'], 'sector'):
-                    results['sector'] = {
-                        'data': result['body'],
-                        'source': result['link']
-                    }
-                    break
+            combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
+            sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
+
+            if sector_analysis['confidence'] >= 0.7:
+                results['sector'] = {
+                    'data': sector_analysis['data'],
+                    'source': sector_results[0]['link'],
+                    'confidence': sector_analysis['confidence']
+                }
 
             # Extract objectives
             objectives_results = self.search_web(objectives_query)
             time.sleep(self.search_delay)
 
-            for result in objectives_results:
-                if self.validate_data(result['body'], result['link'], 'objectives'):
-                    results['objectives'] = {
-                        'data': result['body'],
-                        'source': result['link']
-                    }
-                    break
+            combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
+            objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
+
+            if objectives_analysis['confidence'] >= 0.7:
+                results['objectives'] = {
+                    'data': objectives_analysis['data'],
+                    'source': objectives_results[0]['link'],
+                    'confidence': objectives_analysis['confidence']
+                }
 
             # Validate final results
             if not results['profile']['data']:
