@@ -1,70 +1,36 @@
-from ddg import Duckduckgo
+from duckduckgo_search import DDGS
 import re
 from typing import Dict, List, Any, Optional
 import time
 from openai import OpenAI
 import os
 import json
-import trafilatura
 
 class CompanyResearchAgent:
     def __init__(self):
         self.search_delay = 2  # Delay between searches to avoid rate limiting
-        self.ddg_api = Duckduckgo()
+        self.ddgs = DDGS()
         self.openai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     def search_web(self, query: str, num_results: int = 5) -> List[Dict[str, str]]:
         """
-        Search the web using DuckDuckGo and extract content
+        Search the web using DuckDuckGo
         """
         try:
-            # Start with targeted search
-            enhanced_query = f"{query} site:bloomberg.com OR site:reuters.com OR site:forbes.com"
-            results = []
-
-            # Try first with enhanced query
-            search_results = self.ddg_api.search(enhanced_query)
-
-            if search_results.get("success") and search_results.get("data"):
-                for r in search_results["data"][:num_results]:
-                    if r.get("url"):
-                        try:
-                            # Download and extract content from the webpage
-                            downloaded = trafilatura.fetch_url(r["url"])
-                            if downloaded:
-                                text_content = trafilatura.extract(downloaded) or r.get("description", "")
-                                results.append({
-                                    'title': r.get('title', ''),
-                                    'body': text_content,
-                                    'link': r["url"]
-                                })
-                        except Exception:
-                            # If content extraction fails, use the search snippet
-                            results.append({
-                                'title': r.get('title', ''),
-                                'body': r.get('description', ''),
-                                'link': r["url"]
-                            })
-
-            # If no results, try without site restriction
+            results = list(self.ddgs.text(query, max_results=num_results))
             if not results:
-                search_results = self.ddg_api.search(query)
-                if search_results.get("success") and search_results.get("data"):
-                    for r in search_results["data"][:num_results]:
-                        if r.get("url"):
-                            results.append({
-                                'title': r.get('title', ''),
-                                'body': r.get('description', ''),
-                                'link': r["url"]
-                            })
+                raise Exception(f"No results found for query: {query}")
 
-            if not results:
-                raise Exception(f"No valid results found for query: {query}")
-
-            return results
-
+            # Normalize result fields
+            normalized_results = []
+            for result in results:
+                normalized_results.append({
+                    'title': result.get('title', ''),
+                    'body': result.get('body', result.get('snippet', '')),
+                    'link': result.get('link', result.get('url', ''))
+                })
+            return normalized_results
         except Exception as e:
-            print(f"Search error details - Query: {query}, Error: {str(e)}")  # Debug info
             raise Exception(f"Search error: {str(e)}")
 
     def analyze_with_gpt(self, content: str, company_name: str, analysis_type: str) -> Dict[str, Any]:
@@ -118,12 +84,9 @@ class CompanyResearchAgent:
 
     def search_company_profile(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company profile"""
-        profile_query = f"{company_name} company overview business description"
+        profile_query = f"{company_name} corporation company profile about business"
         profile_results = self.search_web(profile_query)
         time.sleep(self.search_delay)
-
-        if not profile_results:
-            return None
 
         combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
         profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
@@ -138,12 +101,9 @@ class CompanyResearchAgent:
 
     def search_company_sector(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company sector"""
-        sector_query = f"{company_name} industry sector type business"
+        sector_query = f"{company_name} industry sector business type company"
         sector_results = self.search_web(sector_query)
         time.sleep(self.search_delay)
-
-        if not sector_results:
-            return None
 
         combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
         sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
@@ -158,12 +118,9 @@ class CompanyResearchAgent:
 
     def search_company_objectives(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company objectives"""
-        objectives_query = f"{company_name} goals strategy plans future announcement news"
+        objectives_query = f"{company_name} company 2025 objectives goals future plans strategy"
         objectives_results = self.search_web(objectives_query)
         time.sleep(self.search_delay)
-
-        if not objectives_results:
-            return None
 
         combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
         objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
@@ -189,17 +146,13 @@ class CompanyResearchAgent:
 
             # Get initial search results
             profile_data = self.search_company_profile(company_name)
-            time.sleep(self.search_delay)  # Add delay between searches
-
             sector_data = self.search_company_sector(company_name)
-            time.sleep(self.search_delay)
-
             objectives_data = self.search_company_objectives(company_name)
 
             results = {
-                'profile': profile_data if profile_data else {'data': 'Not found', 'source': 'N/A', 'confidence': 0.0},
-                'sector': sector_data if sector_data else {'data': 'Not found', 'source': 'N/A', 'confidence': 0.0},
-                'objectives': objectives_data if objectives_data else {'data': 'Not found', 'source': 'N/A', 'confidence': 0.0}
+                'profile': profile_data if profile_data else {'data': '', 'source': '', 'confidence': 0.0},
+                'sector': sector_data if sector_data else {'data': '', 'source': '', 'confidence': 0.0},
+                'objectives': objectives_data if objectives_data else {'data': '', 'source': '', 'confidence': 0.0}
             }
 
             return results
