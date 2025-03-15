@@ -21,14 +21,19 @@ class CompanyResearchAgent:
             if not results:
                 raise Exception(f"No results found for query: {query}")
 
-            # Normalize result fields
+            # Normalize result fields and ensure valid URLs
             normalized_results = []
             for result in results:
-                normalized_results.append({
-                    'title': result.get('title', ''),
-                    'body': result.get('body', result.get('snippet', '')),
-                    'link': result.get('link', result.get('url', ''))
-                })
+                if result.get('link') or result.get('url'):
+                    normalized_results.append({
+                        'title': result.get('title', ''),
+                        'body': result.get('body', result.get('snippet', '')),
+                        'link': result.get('link') or result.get('url', '')
+                    })
+
+            if not normalized_results:
+                raise Exception("No valid results with source URLs found")
+
             return normalized_results
         except Exception as e:
             raise Exception(f"Search error: {str(e)}")
@@ -88,6 +93,9 @@ class CompanyResearchAgent:
         profile_results = self.search_web(profile_query)
         time.sleep(self.search_delay)
 
+        if not profile_results:
+            return None
+
         combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
         profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
 
@@ -105,6 +113,9 @@ class CompanyResearchAgent:
         sector_results = self.search_web(sector_query)
         time.sleep(self.search_delay)
 
+        if not sector_results:
+            return None
+
         combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
         sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
 
@@ -121,6 +132,9 @@ class CompanyResearchAgent:
         objectives_query = f"{company_name} company 2025 objectives goals future plans strategy"
         objectives_results = self.search_web(objectives_query)
         time.sleep(self.search_delay)
+
+        if not objectives_results:
+            return None
 
         combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
         objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
@@ -150,9 +164,9 @@ class CompanyResearchAgent:
             objectives_data = self.search_company_objectives(company_name)
 
             results = {
-                'profile': profile_data if profile_data else {'data': '', 'source': '', 'confidence': 0.0},
-                'sector': sector_data if sector_data else {'data': '', 'source': '', 'confidence': 0.0},
-                'objectives': objectives_data if objectives_data else {'data': '', 'source': '', 'confidence': 0.0}
+                'profile': profile_data if profile_data else {'data': 'Not found', 'source': 'N/A', 'confidence': 0.0},
+                'sector': sector_data if sector_data else {'data': 'Not found', 'source': 'N/A', 'confidence': 0.0},
+                'objectives': objectives_data if objectives_data else {'data': 'Not found', 'source': 'N/A', 'confidence': 0.0}
             }
 
             return results
