@@ -62,6 +62,20 @@ class CompanyResearchAgent:
             )
 
             result = json.loads(response.choices[0].message.content)
+
+            # Validate and convert confidence to float
+            if not isinstance(result, dict):
+                raise ValueError("GPT response is not a dictionary")
+            if 'data' not in result or 'confidence' not in result:
+                raise ValueError("GPT response missing required fields")
+
+            # Ensure confidence is a float between 0 and 1
+            try:
+                result['confidence'] = float(result['confidence'])
+                result['confidence'] = max(0.0, min(1.0, result['confidence']))
+            except (ValueError, TypeError):
+                result['confidence'] = 0.0
+
             return result
 
         except Exception as e:
@@ -78,9 +92,9 @@ class CompanyResearchAgent:
 
         # Initialize results
         results = {
-            'profile': {'data': '', 'source': '', 'confidence': 0},
-            'sector': {'data': '', 'source': '', 'confidence': 0},
-            'objectives': {'data': '', 'source': '', 'confidence': 0}
+            'profile': {'data': '', 'source': '', 'confidence': 0.0},
+            'sector': {'data': '', 'source': '', 'confidence': 0.0},
+            'objectives': {'data': '', 'source': '', 'confidence': 0.0}
         }
 
         try:
