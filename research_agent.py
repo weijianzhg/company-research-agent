@@ -1,4 +1,4 @@
-from duckduckgo_search import DDGS
+from ddg import Duckduckgo
 import re
 from typing import Dict, List, Any, Optional
 import time
@@ -10,7 +10,7 @@ import trafilatura
 class CompanyResearchAgent:
     def __init__(self):
         self.search_delay = 2  # Delay between searches to avoid rate limiting
-        self.ddgs = DDGS()
+        self.ddg_api = Duckduckgo()
         self.openai = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     def search_web(self, query: str, num_results: int = 5) -> List[Dict[str, str]]:
@@ -23,35 +23,40 @@ class CompanyResearchAgent:
             results = []
 
             # Try first with enhanced query
-            for r in self.ddgs.text(enhanced_query, max_results=num_results):
-                if r.get('link'):
-                    try:
-                        # Download and extract content from the webpage
-                        downloaded = trafilatura.fetch_url(r['link'])
-                        if downloaded:
-                            text_content = trafilatura.extract(downloaded) or r.get('body', '')
+            search_results = self.ddg_api.search(enhanced_query)
+
+            if search_results.get("success") and search_results.get("data"):
+                for r in search_results["data"][:num_results]:
+                    if r.get("url"):
+                        try:
+                            # Download and extract content from the webpage
+                            downloaded = trafilatura.fetch_url(r["url"])
+                            if downloaded:
+                                text_content = trafilatura.extract(downloaded) or r.get("description", "")
+                                results.append({
+                                    'title': r.get('title', ''),
+                                    'body': text_content,
+                                    'link': r["url"]
+                                })
+                        except Exception:
+                            # If content extraction fails, use the search snippet
                             results.append({
                                 'title': r.get('title', ''),
-                                'body': text_content,
-                                'link': r['link']
+                                'body': r.get('description', ''),
+                                'link': r["url"]
                             })
-                    except Exception:
-                        # If content extraction fails, use the search snippet
-                        results.append({
-                            'title': r.get('title', ''),
-                            'body': r.get('body', r.get('snippet', '')),
-                            'link': r['link']
-                        })
 
             # If no results, try without site restriction
             if not results:
-                for r in self.ddgs.text(query, max_results=num_results):
-                    if r.get('link'):
-                        results.append({
-                            'title': r.get('title', ''),
-                            'body': r.get('body', r.get('snippet', '')),
-                            'link': r['link']
-                        })
+                search_results = self.ddg_api.search(query)
+                if search_results.get("success") and search_results.get("data"):
+                    for r in search_results["data"][:num_results]:
+                        if r.get("url"):
+                            results.append({
+                                'title': r.get('title', ''),
+                                'body': r.get('description', ''),
+                                'link': r["url"]
+                            })
 
             if not results:
                 raise Exception(f"No valid results found for query: {query}")
