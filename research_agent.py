@@ -59,6 +59,20 @@ class CompanyResearchAgent:
                             })
 
             if not results:
+                print(f"Search failed for query: {query}")  # Debug info
+                # Try one more time with a simplified query
+                simple_query = ' '.join(query.split()[:2])  # Use first two words
+                search_results = self.ddg_api.search(simple_query)
+                if search_results.get("success") and search_results.get("data"):
+                    for r in search_results["data"][:num_results]:
+                        if r.get("url"):
+                            results.append({
+                                'title': r.get('title', ''),
+                                'body': r.get('description', ''),
+                                'link': r["url"]
+                            })
+
+            if not results:
                 raise Exception(f"No valid results found for query: {query}")
 
             return results
@@ -158,22 +172,31 @@ class CompanyResearchAgent:
 
     def search_company_objectives(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company objectives"""
-        objectives_query = f"{company_name} goals strategy plans future announcement news"
-        objectives_results = self.search_web(objectives_query)
-        time.sleep(self.search_delay)
+        # Try multiple search patterns for objectives
+        search_patterns = [
+            f"{company_name} company strategic plans initiatives",
+            f"{company_name} future goals objectives announcement",
+            f"{company_name} business outlook forecast"
+        ]
 
-        if not objectives_results:
-            return None
+        for query in search_patterns:
+            try:
+                objectives_results = self.search_web(query)
+                if objectives_results:
+                    combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
+                    objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
 
-        combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
-        objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
+                    if objectives_analysis['confidence'] >= 0.3:  # Lower threshold
+                        return {
+                            'data': objectives_analysis['data'],
+                            'source': objectives_results[0]['link'],
+                            'confidence': objectives_analysis['confidence']
+                        }
+            except Exception:
+                continue
 
-        if objectives_analysis['confidence'] >= 0.3:  # Lower threshold
-            return {
-                'data': objectives_analysis['data'],
-                'source': objectives_results[0]['link'],
-                'confidence': objectives_analysis['confidence']
-            }
+            time.sleep(self.search_delay)
+
         return None
 
     def research_company(self, company_name: str) -> Dict[str, Any]:
