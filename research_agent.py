@@ -1,4 +1,3 @@
-from ddg import Duckduckgo
 import re
 from typing import Dict, List, Any, Optional
 import time
@@ -6,6 +5,7 @@ from openai import OpenAI
 import os
 import json
 import trafilatura
+from ddg import Duckduckgo
 
 class CompanyResearchAgent:
     def __init__(self):
@@ -18,7 +18,6 @@ class CompanyResearchAgent:
         Search the web using DuckDuckGo and extract content
         """
         try:
-            # First try without any site restrictions
             search_results = self.ddg_api.search(query)
 
             if not search_results.get("success"):
@@ -100,7 +99,8 @@ class CompanyResearchAgent:
             return result
 
         except Exception as e:
-            raise Exception(f"GPT analysis failed: {str(e)}")
+            print(f"GPT analysis failed: {str(e)}")
+            return {'data': 'Analysis failed', 'confidence': 0.0}
 
     def search_company_profile(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company profile"""
@@ -127,11 +127,12 @@ class CompanyResearchAgent:
                         }
                 time.sleep(self.search_delay)
 
-            return None
+            # Return default response if no good results found
+            return {'data': 'No reliable profile information found', 'source': 'N/A', 'confidence': 0.0}
 
         except Exception as e:
             print(f"Profile search error: {str(e)}")
-            return None
+            return {'data': 'Error retrieving profile', 'source': 'N/A', 'confidence': 0.0}
 
     def search_company_sector(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company sector"""
@@ -158,11 +159,12 @@ class CompanyResearchAgent:
                         }
                 time.sleep(self.search_delay)
 
-            return None
+            # Return default response if no good results found
+            return {'data': 'No reliable sector information found', 'source': 'N/A', 'confidence': 0.0}
 
         except Exception as e:
             print(f"Sector search error: {str(e)}")
-            return None
+            return {'data': 'Error retrieving sector information', 'source': 'N/A', 'confidence': 0.0}
 
     def search_company_objectives(self, company_name: str) -> Optional[Dict[str, Any]]:
         """Search and analyze company objectives"""
@@ -189,11 +191,12 @@ class CompanyResearchAgent:
                         }
                 time.sleep(self.search_delay)
 
-            return None
+            # Return default response if no good results found
+            return {'data': 'No reliable objectives information found', 'source': 'N/A', 'confidence': 0.0}
 
         except Exception as e:
             print(f"Objectives search error: {str(e)}")
-            return None
+            return {'data': 'Error retrieving objectives', 'source': 'N/A', 'confidence': 0.0}
 
     def research_company(self, company_name: str) -> Dict[str, Any]:
         """
