@@ -41,21 +41,22 @@ class CompanyResearchAgent:
             prompts = {
                 'profile': f"Extract a concise company profile for {company_name} from the following text. "
                           f"Focus on what the company does, its main business, and key information. "
-                          f"Respond in JSON format with 'data' and 'confidence' fields. "
-                          f"Example: {{'data': 'Company profile...', 'confidence': 0.95}}",
+                          f"Be concise but comprehensive. If uncertain, provide the most reliable information found. "
+                          f"Respond in JSON format with 'data' and 'confidence' fields.",
                 'sector': f"Determine the industry sector and business type of {company_name} from the following text. "
-                         f"Be specific about the sector and any sub-sectors. "
-                         f"Respond in JSON format with 'data' and 'confidence' fields.",
+                         f"Be specific about the sector and any sub-sectors. If multiple sectors are found, list the primary ones. "
+                         f"Respond in JSON format with 'data' and 'confidence' fields. "
+                         f"Example: {{'data': 'Technology - Consumer Electronics, Software, and Services', 'confidence': 0.95}}",
                 'objectives': f"Extract {company_name}'s future objectives, particularly focusing on 2025 goals "
                             f"or strategic plans from the following text. If exact 2025 goals aren't mentioned, "
-                            f"include relevant future plans. "
+                            f"include relevant future plans or recent strategic initiatives. "
                             f"Respond in JSON format with 'data' and 'confidence' fields."
             }
 
             response = self.openai.chat.completions.create(
                 model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
                 messages=[
-                    {"role": "system", "content": "You are a company research analyst focused on extracting accurate information."},
+                    {"role": "system", "content": "You are a company research analyst focused on extracting accurate information. Always provide information if found, with appropriate confidence levels."},
                     {"role": "user", "content": f"{prompts[analysis_type]}\n\nText: {content}"}
                 ],
                 response_format={"type": "json_object"}
@@ -106,7 +107,7 @@ class CompanyResearchAgent:
             combined_profile_text = "\n".join([r['body'] for r in profile_results[:3]])
             profile_analysis = self.analyze_with_gpt(combined_profile_text, company_name, 'profile')
 
-            if profile_analysis['confidence'] >= 0.7:
+            if profile_analysis['confidence'] >= 0.5:  # Lower threshold
                 results['profile'] = {
                     'data': profile_analysis['data'],
                     'source': profile_results[0]['link'],
@@ -120,7 +121,7 @@ class CompanyResearchAgent:
             combined_sector_text = "\n".join([r['body'] for r in sector_results[:3]])
             sector_analysis = self.analyze_with_gpt(combined_sector_text, company_name, 'sector')
 
-            if sector_analysis['confidence'] >= 0.7:
+            if sector_analysis['confidence'] >= 0.5:  # Lower threshold
                 results['sector'] = {
                     'data': sector_analysis['data'],
                     'source': sector_results[0]['link'],
@@ -134,7 +135,7 @@ class CompanyResearchAgent:
             combined_objectives_text = "\n".join([r['body'] for r in objectives_results[:3]])
             objectives_analysis = self.analyze_with_gpt(combined_objectives_text, company_name, 'objectives')
 
-            if objectives_analysis['confidence'] >= 0.7:
+            if objectives_analysis['confidence'] >= 0.5:  # Lower threshold
                 results['objectives'] = {
                     'data': objectives_analysis['data'],
                     'source': objectives_results[0]['link'],
