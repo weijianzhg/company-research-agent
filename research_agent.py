@@ -26,8 +26,8 @@ class CompanyResearchAgent:
             for result in results:
                 normalized_results.append({
                     'title': result.get('title', ''),
-                    'body': result.get('body', result.get('snippet', '')),
-                    'link': result.get('link', result.get('url', ''))
+                    'body': result.get('body', ''),
+                    'link': result.get('href', '')
                 })
             return normalized_results
         except Exception as e:
