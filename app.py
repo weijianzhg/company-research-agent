@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 from research_agent import CompanyResearchAgent
+from dotenv import load_dotenv
+
+load_dotenv()
 
 st.set_page_config(
     page_title="Company Research Agent",

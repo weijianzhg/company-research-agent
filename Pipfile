@@ -9,6 +9,8 @@ openai = "*"
 pandas = "*"
 streamlit = "*"
 trafilatura = "*"
+python-dotenv = "*"
+watchdog = "*"
 
 [dev-packages]
 
