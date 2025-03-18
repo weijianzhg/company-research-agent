@@ -2,6 +2,8 @@
 
 A Streamlit-based application that uses AI to research and analyze companies. The application can gather information about company profiles, industry sectors, and future objectives using web search and GPT analysis.
 
+![Company Research Agent Landing Page](img/landing.png)
+
 ## Features
 
 - 🔍 **Single Company Research**: Research individual companies with detailed analysis
