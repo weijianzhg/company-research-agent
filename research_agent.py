@@ -42,7 +42,8 @@ class CompanyResearchAgent:
                 'profile': f"Extract a concise company profile for {company_name} from the following text. "
                           f"Focus on what the company does, its main business, and key information. "
                           f"Be concise but comprehensive. If uncertain, provide the most reliable information found. "
-                          f"Respond in JSON format with 'data' and 'confidence' fields where confidence is a float between 0 and 1.",
+                          f"Respond in JSON format with 'data' and 'confidence' fields where confidence is a float between 0 and 1."
+                          f"Example: {{'data': 'Company X is a technology company that develops software for the automotive industry.', 'confidence': 0.95}}",
                 'sector': f"Determine the industry sector and business type of {company_name} from the following text. "
                          f"Be specific about the sector and any sub-sectors. If multiple sectors are found, list the primary ones. "
                          f"Respond in JSON format with 'data' and 'confidence' fields where confidence is a float between 0 and 1. "
@@ -51,6 +52,7 @@ class CompanyResearchAgent:
                             f"or strategic plans from the following text. If exact 2025 goals aren't mentioned, "
                             f"include relevant future plans or recent strategic initiatives. "
                             f"Respond in JSON format with 'data' and 'confidence' fields where confidence is a float between 0 and 1."
+                            f"Example: {{'data': '2025 objectives: Increase market share by 10%, Launch new product line, Expand into new markets', 'confidence': 0.95}}",
             }
 
             response = self.openai.chat.completions.create(
@@ -63,7 +65,6 @@ class CompanyResearchAgent:
             )
 
             result = json.loads(response.choices[0].message.content)
-
             # Validate and convert confidence to float
             if not isinstance(result, dict):
                 raise ValueError("GPT response is not a dictionary")

@@ -30,7 +30,9 @@ if input_method == "Single Company":
 
     if company_name and st.button("Research"):
         progress_container = st.empty()
-        result_container = st.empty()
+        profile_container = st.empty()
+        sector_container = st.empty()
+        objectives_container = st.empty()
 
         try:
             # Initialize progress
@@ -41,10 +43,12 @@ if input_method == "Single Company":
             profile_data = agent.search_company_profile(company_name)
 
             if profile_data:
-                with result_container.container():
+                with profile_container.container():
                     st.markdown("### Company Profile")
-                    st.write(profile_data['data'])
-                    st.caption(f"Source: {profile_data['source']}")
+                    st.markdown("**Data:**")
+                    st.markdown(profile_data['data'])
+                    st.markdown("**Source:**")
+                    st.markdown(f"[Link to source]({profile_data['source']})")
                     st.progress(profile_data['confidence'], text=f"Confidence: {profile_data['confidence']:.0%}")
 
             # Sector Search
@@ -52,10 +56,12 @@ if input_method == "Single Company":
             sector_data = agent.search_company_sector(company_name)
 
             if sector_data:
-                with result_container.container():
+                with sector_container.container():
                     st.markdown("### Company Sector")
-                    st.write(sector_data['data'])
-                    st.caption(f"Source: {sector_data['source']}")
+                    st.markdown("**Data:**")
+                    st.markdown(sector_data['data'])
+                    st.markdown("**Source:**")
+                    st.markdown(f"[Link to source]({sector_data['source']})")
                     st.progress(sector_data['confidence'], text=f"Confidence: {sector_data['confidence']:.0%}")
 
             # Objectives Search
@@ -63,10 +69,12 @@ if input_method == "Single Company":
             objectives_data = agent.search_company_objectives(company_name)
 
             if objectives_data:
-                with result_container.container():
+                with objectives_container.container():
                     st.markdown("### 2025 Objectives")
-                    st.write(objectives_data['data'])
-                    st.caption(f"Source: {objectives_data['source']}")
+                    st.markdown("**Data:**")
+                    st.markdown(objectives_data['data'])
+                    st.markdown("**Source:**")
+                    st.markdown(f"[Link to source]({objectives_data['source']})")
                     st.progress(objectives_data['confidence'], text=f"Confidence: {objectives_data['confidence']:.0%}")
 
             progress_container.markdown("✅ Research complete!")
