@@ -58,13 +58,13 @@ streamlit run app.py --server.port 3444
 
 ### Multiple Companies Research
 1. Select "Multiple Companies" as the input method
-2. Upload a CSV file containing a 'company_name' column
+2. Upload a CSV file containing a 'company_name' column (see example.csv)
 3. Click "Research" to analyze all companies
 4. Download the results as a CSV file
 
 ## Research Information
 
-The application provides three main types of information for each company:
+The application provides main types of information for each company:
 
 1. **Company Profile**: Overview of the company's business and operations
 2. **Industry Sector**: Company's sector and business type
