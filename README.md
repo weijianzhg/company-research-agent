@@ -23,7 +23,7 @@ A Streamlit-based application that uses AI to research and analyze companies. Th
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/weijianzhg/company-research-agent
 cd company-research-agent
 ```
 
